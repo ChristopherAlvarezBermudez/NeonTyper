@@ -14,7 +14,7 @@
             margin: 0;
             overflow: hidden;
             background-color: #020205;
-            height: 100vh;
+            height: 100dvh;
             width: 100vw;
             display: flex;
             justify-content: center;
@@ -120,6 +120,7 @@
             margin: 0 0 20px 0;
             background: -webkit-linear-gradient(#fff, #f0f);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
             animation: pulse 2s infinite;
@@ -228,7 +229,7 @@
 
             #gameContainer {
                 width: 100vw;
-                height: 55vh;
+                height: 55dvh;
                 box-shadow: none;
                 border: none;
                 border-bottom: 2px solid #0ff;
@@ -259,7 +260,7 @@
                 display: flex;
                 flex-direction: column;
                 width: 100vw;
-                height: 45vh;
+                height: 45dvh;
                 background: #050510;
                 position: relative;
                 z-index: 5000;
@@ -313,6 +314,7 @@
                 gap: 3px;
                 width: 100%;
                 flex: 1;
+                box-sizing: border-box;
             }
 
             .kb-key {
@@ -445,7 +447,7 @@
 
             if (isMobile) {
                 gameContainer.style.width = '100vw';
-                gameContainer.style.height = '55vh';
+                gameContainer.style.height = '55dvh';
                 mobileControls.style.display = 'flex';
                 uiMap.startHint.innerHTML = "<span style='color:#0ff'>TAP DEBRIS</span> TO DESTROY<br><span style='color:#FFD700'>TAP BUTTON</span> FOR HUNTER MODE";
             } else {
