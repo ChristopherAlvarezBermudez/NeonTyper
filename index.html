@@ -474,7 +474,7 @@
                 const rowDiv = document.createElement('div');
                 rowDiv.className = 'kb-row';
                 if (rIdx === 1) rowDiv.style.padding = '0 5%';
-                if (rIdx === 2) rowDiv.style.padding = '0 15%';
+                // Removed padding for rIdx === 2 to allow full width
 
                 const chars = rowStr.split('');
                 if (rIdx === 2) {
@@ -482,7 +482,7 @@
                     shiftKey.className = 'kb-key';
                     shiftKey.innerHTML = '⇧';
                     shiftKey.id = 'key-shift';
-                    shiftKey.style.flex = '0.8';
+                    shiftKey.style.flex = '1.5';
                     shiftKey.addEventListener('touchstart', (e) => { e.preventDefault(); toggleShift(); });
                     rowDiv.appendChild(shiftKey);
                 }
@@ -506,7 +506,7 @@
                     const spacer = document.createElement('div');
                     spacer.className = 'kb-key';
                     spacer.style.visibility = 'hidden';
-                    spacer.style.flex = '0.8';
+                    spacer.style.flex = '1.5';
                     rowDiv.appendChild(spacer);
                 }
                 virtualKeyboard.appendChild(rowDiv);
