@@ -15,7 +15,7 @@
   </p>
 
   <h3>
-    <a href="YOUR_GITHUB_PAGES_LINK_HERE">🔗 PLAY NOW (ONLINE DEMO)</a>
+      <a href="https://christopheralvarezbermudez.github.io/NeonTyper/">🔗 PLAY NOW (ONLINE DEMO)</a>
   </h3>
 </div>
 
