@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Typer</title>
+    <title>Neon Typer - v3.3 Clean</title>
     <style>
         /* Google Fonts solo - Más seguro y rápido */
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
@@ -376,7 +376,7 @@
             <span id="waveLabel">WAVE: </span><span id="waveVal">1</span><br>
             <span id="hunterStatus" style="font-size: 14px; color: #666;">SYSTEM: NORMAL</span>
         </div>
-        <div id="version">v3.4 - Optimization</div>
+        <div id="version">v3.3 - Clean</div>
         <div id="waveAnnounce">WAVE COMPLETED</div>
         <div id="ui">
             <div id="startScreen">
@@ -403,9 +403,6 @@
     </div>
 
     <script>
-        'use strict';
-
-        // ========== DOM REFERENCES ==========
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const gameContainer = document.getElementById('gameContainer');
@@ -431,51 +428,22 @@
         const hunterToggle = document.getElementById('hunterToggle');
         const virtualKeyboard = document.getElementById('virtualKeyboard');
 
-        // ========== GAME CONSTANTS ==========
+        // Constants 
         const GAME_WIDTH = 1200;
         const GAME_HEIGHT = 800;
         const TWO_PI = Math.PI * 2;
-        const HALF_PI = Math.PI / 2;
-
-        // Gameplay tuning
-        const MOBILE_BREAKPOINT = 800;
-        const WAVE_BASE_ENEMIES = 4;
-        const WAVE_ENEMY_MULTIPLIER = 1.5;
-        const WAVE_COOLDOWN_FRAMES = 180;
-        const SPAWN_RATE_MIN_NORMAL = 40;
-        const SPAWN_RATE_BASE_NORMAL = 100;
-        const SPAWN_RATE_MIN_INFINITE = 20;
-        const SPAWN_RATE_BASE_INFINITE = 80;
-        const BONUS_SPAWN_CHANCE = 0.015;
-        const DEBRIS_SPAWN_CHANCE = 0.35;
-        const INFINITE_LEVEL_INTERVAL = 1200;
-
-        // Scoring
-        const SCORE_DEBRIS = 50;
-        const SCORE_ENEMY_PER_CHAR = 100;
-        const SCORE_BONUS_KILL = 5000;
-
-        // Physics / timing
-        const MAX_FRAME_DT = 100;
-        const FRAME_REFERENCE = 16.67;
-        const SHAKE_DURATION_MS = 50;
-        const GAME_OVER_SHOW_DELAY_MS = 3000;
-        const RESIZE_DEBOUNCE_MS = 100;
-
         canvas.width = GAME_WIDTH;
         canvas.height = GAME_HEIGHT;
 
-        // ========== LOOP CONTROL ==========
+        // Loop Control
         let animationFrameId = null;
         let lastTime = 0;
         let spawnTimer = 0;
         let isMobile = false;
         let shiftActive = false;
 
-        /** Debounced resize handler to prevent excessive reflows */
-        let resizeTimeout = null;
         function resizeGame() {
-            isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+            isMobile = window.innerWidth <= 800;
 
             if (isMobile) {
                 gameContainer.style.width = '100vw';
@@ -494,11 +462,8 @@
             }
             if (player) player.updatePosition();
         }
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(resizeGame, RESIZE_DEBOUNCE_MS);
-        });
-        setTimeout(resizeGame, RESIZE_DEBOUNCE_MS);
+        window.addEventListener('resize', resizeGame);
+        setTimeout(resizeGame, 100);
 
         // --- VIRTUAL KEYBOARD ---
         const KEYS_QWERTY = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
@@ -549,21 +514,12 @@
         }
         createKeyboard();
 
-        /** Cached list of all keyboard key elements for shift toggling */
-        const allKeyElements = () => document.querySelectorAll('.kb-key[data-char]');
-        let cachedKeys = null;
-
         function toggleShift() {
             shiftActive = !shiftActive;
             const shiftBtn = document.getElementById('key-shift');
-            if (shiftActive) {
-                shiftBtn.classList.add('shift-active');
-            } else {
-                shiftBtn.classList.remove('shift-active');
-            }
-            if (!cachedKeys) cachedKeys = allKeyElements();
-            cachedKeys.forEach(k => {
-                k.innerText = shiftActive ? k.dataset.char.toUpperCase() : k.dataset.char.toLowerCase();
+            if (shiftActive) shiftBtn.classList.add('shift-active'); else shiftBtn.classList.remove('shift-active');
+            document.querySelectorAll('.kb-key').forEach(k => {
+                if (k.dataset.char) k.innerText = shiftActive ? k.dataset.char.toUpperCase() : k.dataset.char.toLowerCase();
             });
         }
 
@@ -626,281 +582,133 @@
             }
         }
 
-        // ========== ASSETS ==========
-        const CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        const DEBRIS_POOL = '0123456789!@#$%^&*()';
+        // --- ASSETS ---
+        const CHAR_POOL = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const DEBRIS_POOL = "0123456789!@#$%^&*()";
         let CHAR_WIDTH = 0;
 
         const COLORS = {
-            player: '#00ffff',
-            bullet: '#ff00ff',
-            enemy: '#ff3333',
-            bonus: '#FFD700',
-            debris: '#FF8800',
-            particle: '#ffffff',
-            textTyped: '#00ff00',
-            textUntyped: '#ffffff',
-            lockOn: '#ffff00'
+            player: '#00ffff', bullet: '#ff00ff', enemy: '#ff3333',
+            bonus: '#FFD700', debris: '#FF8800', particle: '#ffffff',
+            textTyped: '#00ff00', textUntyped: '#ffffff', lockOn: '#ffff00'
         };
 
-        // ========== AUDIO ENGINE ==========
-        /** Synthesized audio engine using Web Audio API */
+        // --- AUDIO ---
         class SoundSynthesis {
-            constructor() {
-                this.ctx = null;
-                this.musicInterval = null;
-                this.isMuted = false;
-            }
-
+            constructor() { this.ctx = null; this.musicInterval = null; this.isMuted = false; }
             init() {
                 try {
-                    if (!this.ctx) {
-                        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    }
-                    if (this.ctx.state === 'suspended') {
-                        this.ctx.resume();
-                    }
-                } catch (e) {
-                    console.error('Audio init failed', e);
-                }
+                    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                } catch (e) { console.error("Audio init failed", e); }
             }
-
             playTone(freq, type, duration, vol = 0.1) {
                 if (!this.ctx || this.isMuted) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
                 gain.gain.setValueAtTime(vol, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + duration);
-                // Prevent memory leaks by disconnecting finished nodes
-                osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + duration);
             }
-
             playNoise(duration, vol = 0.2) {
                 if (!this.ctx || this.isMuted) return;
                 const bufferSize = this.ctx.sampleRate * duration;
                 const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                 const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
                 const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-                const gain = this.ctx.createGain();
+                noise.buffer = buffer; const gain = this.ctx.createGain();
                 gain.gain.setValueAtTime(vol, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-                noise.connect(gain);
-                gain.connect(this.ctx.destination);
+                noise.connect(gain); gain.connect(this.ctx.destination);
                 noise.start();
-                // Prevent memory leaks by disconnecting finished nodes
-                noise.onended = () => { noise.disconnect(); gain.disconnect(); };
             }
-
-            shoot() {
-                this.playTone(880, 'triangle', 0.1, 0.1);
-                this.playTone(1760, 'sawtooth', 0.05, 0.05);
-            }
-
+            shoot() { this.playTone(880, 'triangle', 0.1, 0.1); this.playTone(1760, 'sawtooth', 0.05, 0.05); }
             hit() { this.playTone(440, 'square', 0.1, 0.1); }
-
-            explode() {
-                this.playNoise(0.5, 0.3);
-                this.playTone(100, 'sawtooth', 0.5, 0.2);
-            }
-
-            waveClear() {
-                this.playTone(440, 'sine', 0.5, 0.1);
-                setTimeout(() => this.playTone(554, 'sine', 0.5, 0.1), 100);
-                setTimeout(() => this.playTone(659, 'sine', 0.5, 0.1), 200);
-            }
-
-            error() {
-                if (!this.ctx || this.isMuted) return;
-                this.playTone(150, 'sawtooth', 0.15, 0.2);
-                setTimeout(() => this.playTone(100, 'sawtooth', 0.15, 0.2), 50);
-            }
-
-            bonusSpawn() {
-                if (!this.ctx || this.isMuted) return;
-                this.playTone(600, 'sine', 0.1, 0.1);
-                setTimeout(() => this.playTone(1200, 'sine', 0.3, 0.1), 100);
-            }
-
-            catastrophicEnding(intensity) {
-                if (!this.ctx || this.isMuted) return;
-                this.playNoise(1.0, 0.5);
-                this.playTone(100, 'sawtooth', 3.0, 0.5);
-            }
-
+            explode() { this.playNoise(0.5, 0.3); this.playTone(100, 'sawtooth', 0.5, 0.2); }
+            waveClear() { this.playTone(440, 'sine', 0.5, 0.1); setTimeout(() => this.playTone(554, 'sine', 0.5, 0.1), 100); setTimeout(() => this.playTone(659, 'sine', 0.5, 0.1), 200); }
+            error() { if (!this.ctx || this.isMuted) return; this.playTone(150, 'sawtooth', 0.15, 0.2); setTimeout(() => this.playTone(100, 'sawtooth', 0.15, 0.2), 50); }
+            bonusSpawn() { if (!this.ctx || this.isMuted) return; this.playTone(600, 'sine', 0.1, 0.1); setTimeout(() => this.playTone(1200, 'sine', 0.3, 0.1), 100); }
+            catastrophicEnding(intensity) { if (!this.ctx || this.isMuted) return; this.playNoise(1.0, 0.5); this.playTone(100, 'sawtooth', 3.0, 0.5); }
             startMusic() {
                 if (!this.ctx || this.isMuted) return;
                 this.stopMusic();
                 const notes = [110, 110, 130.81, 110, 146.83, 110, 130.81, 98];
                 let noteIdx = 0;
-                this.musicInterval = setInterval(() => {
-                    this.playTone(notes[noteIdx], 'sawtooth', 0.2, 0.05);
-                    noteIdx = (noteIdx + 1) % notes.length;
-                }, 250);
+                this.musicInterval = setInterval(() => { this.playTone(notes[noteIdx], 'sawtooth', 0.2, 0.05); noteIdx = (noteIdx + 1) % notes.length; }, 250);
             }
-
-            stopMusic() {
-                if (this.musicInterval) {
-                    clearInterval(this.musicInterval);
-                    this.musicInterval = null;
-                }
-            }
+            stopMusic() { if (this.musicInterval) clearInterval(this.musicInterval); }
         }
         const audio = new SoundSynthesis();
 
-        /**
-         * Efficiently removes items marked for deletion using swap-and-truncate (O(n)).
-         * Replaces the old splice-based approach which was O(n²) worst case.
-         */
         function cleanArray(arr) {
-            let writeIdx = 0;
-            for (let i = 0; i < arr.length; i++) {
-                if (!arr[i].markedForDeletion) {
-                    arr[writeIdx++] = arr[i];
-                }
-            }
-            arr.length = writeIdx;
+            let i = arr.length;
+            while (i--) { if (arr[i].markedForDeletion) arr.splice(i, 1); }
         }
 
-        // ========== GAME STATE ==========
-        let gameActive = false;
-        let score = 0;
-        let frames = 0;
-        let activeTarget = null;
-        let hunterMode = false;
-        let currentMode = 'NORMAL';
-        let wave = 1;
-        let enemiesToSpawn = 0;
-        let waveInProgress = false;
-        let waveCooldown = 0;
-        let infiniteDifficultyLevel = 1;
-        let player;
-        let bullets = [];
-        let enemies = [];
-        let debris = [];
-        let particles = [];
-        let drawList = [];
+        // --- LOGIC ---
+        let gameActive = false; let score = 0; let frames = 0;
+        let activeTarget = null; let hunterMode = false; let currentMode = 'NORMAL';
+        let wave = 1; let enemiesToSpawn = 0; let waveInProgress = false; let waveCooldown = 0; let infiniteDifficultyLevel = 1;
+        let player; let bullets = []; let enemies = []; let debris = []; let particles = []; let drawList = [];
 
-        // ========== GAME ENTITIES ==========
-        /** The player ship, always at the bottom of the screen */
         class Player {
             constructor() {
                 this.x = GAME_WIDTH / 2;
                 this.y = GAME_HEIGHT - 80;
-                this.radius = 20;
-                this.color = COLORS.player;
-                this.angle = -HALF_PI;
-                this.visible = true;
+                this.radius = 20; this.color = COLORS.player;
+                this.angle = -Math.PI / 2; this.visible = true;
                 this.updatePosition();
             }
-
-            updatePosition() {
-                this.y = isMobile ? GAME_HEIGHT - 120 : GAME_HEIGHT - 80;
-            }
-
+            updatePosition() { this.y = isMobile ? GAME_HEIGHT - 120 : GAME_HEIGHT - 80; }
             update(dt) {
-                let targetAngle = -HALF_PI;
+                let targetAngle = -Math.PI / 2;
                 if (activeTarget && !activeTarget.markedForDeletion) {
-                    const dx = activeTarget.x - this.x;
-                    const dy = activeTarget.y - this.y;
+                    const dx = activeTarget.x - this.x; const dy = activeTarget.y - this.y;
                     targetAngle = Math.atan2(dy, dx);
                 }
                 this.angle = this.lerpAngle(this.angle, targetAngle, 0.2 * dt);
             }
-
             lerpAngle(a, b, t) {
-                const diff = b - a;
-                let d = diff % TWO_PI;
-                if (d > Math.PI) d -= TWO_PI;
-                if (d < -Math.PI) d += TWO_PI;
+                const diff = b - a; let d = diff % TWO_PI;
+                if (d > Math.PI) d -= TWO_PI; if (d < -Math.PI) d += TWO_PI;
                 return a + d * Math.min(t, 1.0);
             }
-
             draw() {
                 if (!this.visible) return;
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.angle + HALF_PI);
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = this.color;
-                ctx.beginPath();
-                ctx.moveTo(0, -25);
-                ctx.lineTo(15, 15);
-                ctx.lineTo(0, 5);
-                ctx.lineTo(-15, 15);
-                ctx.closePath();
-                ctx.strokeStyle = this.color;
-                ctx.lineWidth = 3;
-                ctx.stroke();
-                ctx.fillStyle = 'rgba(0, 255, 255, 0.2)';
-                ctx.fill();
-                ctx.restore();
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle + Math.PI / 2);
+                ctx.shadowBlur = 20; ctx.shadowColor = this.color;
+                ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(15, 15); ctx.lineTo(0, 5); ctx.lineTo(-15, 15);
+                ctx.closePath(); ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.stroke();
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.2)'; ctx.fill(); ctx.restore();
             }
-
             shoot(target) {
                 bullets.push(new Bullet(this.x, this.y, target));
-                createParticles(
-                    this.x + Math.cos(this.angle) * 25,
-                    this.y + Math.sin(this.angle) * 25,
-                    5, '#0ff', 4
-                );
+                createParticles(this.x + Math.cos(this.angle) * 25, this.y + Math.sin(this.angle) * 25, 5, '#0ff', 4);
                 audio.shoot();
             }
         }
 
-        /** Homing bullet that tracks its target */
         class Bullet {
             constructor(x, y, target) {
-                this.x = x;
-                this.y = y;
-                this.target = target;
-                this.radius = 4;
-                this.speed = 25;
-                this.markedForDeletion = false;
-                const destX = target ? target.x : x;
-                const destY = target ? target.y : y - 100;
-                const dx = destX - x;
-                const dy = destY - y;
-                const dist = Math.hypot(dx, dy) || 1;
-                this.vx = (dx / dist) * this.speed;
-                this.vy = (dy / dist) * this.speed;
+                this.x = x; this.y = y; this.target = target;
+                this.radius = 4; this.speed = 25; this.markedForDeletion = false;
+                let destX = target ? target.x : x; let destY = target ? target.y : y - 100;
+                const dx = destX - x; const dy = destY - y; const dist = Math.hypot(dx, dy) || 1;
+                this.vx = (dx / dist) * this.speed; this.vy = (dy / dist) * this.speed;
             }
-
             update(dt) {
                 if (this.target && !this.target.markedForDeletion) {
-                    const dx = this.target.x - this.x;
-                    const dy = this.target.y - this.y;
-                    const dist = Math.hypot(dx, dy);
-                    if (dist > 0) {
-                        this.vx = (dx / dist) * this.speed;
-                        this.vy = (dy / dist) * this.speed;
-                    }
+                    const dx = this.target.x - this.x; const dy = this.target.y - this.y; const dist = Math.hypot(dx, dy);
+                    this.vx = (dx / dist) * this.speed; this.vy = (dy / dist) * this.speed;
                 }
-                this.x += this.vx * dt;
-                this.y += this.vy * dt;
-                if (this.x < 0 || this.x > GAME_WIDTH || this.y < 0 || this.y > GAME_HEIGHT) {
-                    this.markedForDeletion = true;
-                }
+                this.x += this.vx * dt; this.y += this.vy * dt;
+                if (this.x < 0 || this.x > GAME_WIDTH || this.y < 0 || this.y > GAME_HEIGHT) this.markedForDeletion = true;
             }
-
             draw() {
-                ctx.save();
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = COLORS.bullet;
-                ctx.fillStyle = COLORS.bullet;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, TWO_PI);
-                ctx.fill();
-                ctx.restore();
+                ctx.save(); ctx.shadowBlur = 10; ctx.shadowColor = COLORS.bullet; ctx.fillStyle = COLORS.bullet;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, TWO_PI); ctx.fill(); ctx.restore();
             }
         }
 
@@ -1045,70 +853,40 @@
             }
         }
 
-        // ========== GAME LIFECYCLE ==========
-        /** Initialize a new game with the given mode ('NORMAL' or 'INFINITE') */
         function init(mode) {
-            resizeGame();
-            audio.init();
-            audio.startMusic();
+            resizeGame(); audio.init(); audio.startMusic();
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             gameContainer.classList.remove('glitch-active');
-            flashOverlay.classList.remove('flash-active');
-            flashOverlay.classList.remove('flash-fade');
-            ctx.font = "bold 24px 'Source Code Pro', monospace";
-            CHAR_WIDTH = ctx.measureText('M').width;
+            flashOverlay.classList.remove('flash-active'); flashOverlay.classList.remove('flash-fade');
+            ctx.font = "bold 24px 'Source Code Pro', monospace"; CHAR_WIDTH = ctx.measureText("M").width;
 
-            player = new Player();
-            bullets = [];
-            enemies = [];
-            debris = [];
-            particles = [];
-            drawList = [];
-            score = 0;
-            wave = 1;
-            frames = 0;
-            activeTarget = null;
-            hunterMode = false;
-            uiMap.hunterStatus.innerText = 'SYSTEM: NORMAL';
-            uiMap.hunterStatus.style.color = '#666';
+            player = new Player(); bullets = []; enemies = []; debris = []; particles = []; drawList = [];
+            score = 0; wave = 1; frames = 0; activeTarget = null; hunterMode = false;
+            uiMap.hunterStatus.innerText = "SYSTEM: NORMAL"; uiMap.hunterStatus.style.color = "#666";
             if (isMobile) hunterToggle.classList.remove('active');
-            gameActive = true;
-            currentMode = mode;
-            infiniteDifficultyLevel = 1;
-            lastTime = performance.now();
-            spawnTimer = 0;
-            waveCooldown = 0;
+            gameActive = true; currentMode = mode; infiniteDifficultyLevel = 1;
+            lastTime = performance.now(); spawnTimer = 0; waveCooldown = 0;
 
             if (currentMode === 'NORMAL') {
-                uiMap.waveLabel.classList.remove('hidden');
-                uiMap.waveVal.classList.remove('hidden');
-                startWave();
+                uiMap.waveLabel.classList.remove('hidden'); uiMap.waveVal.classList.remove('hidden'); startWave();
             } else {
-                uiMap.waveLabel.classList.add('hidden');
-                uiMap.waveVal.classList.add('hidden');
-                uiMap.waveAnnounce.innerText = 'INFINITE MODE';
-                uiMap.waveAnnounce.classList.add('show-announce');
+                uiMap.waveLabel.classList.add('hidden'); uiMap.waveVal.classList.add('hidden');
+                uiMap.waveAnnounce.innerText = "INFINITE MODE"; uiMap.waveAnnounce.classList.add('show-announce');
                 setTimeout(() => uiMap.waveAnnounce.classList.remove('show-announce'), 2000);
             }
-            scoreUpdate();
-            requestAnimationFrame(loop);
+            scoreUpdate(); requestAnimationFrame(loop);
         }
 
         function startWave() {
-            enemiesToSpawn = WAVE_BASE_ENEMIES + Math.floor(wave * WAVE_ENEMY_MULTIPLIER);
-            waveInProgress = true;
-            waveCooldown = 0;
-            uiMap.waveAnnounce.innerText = 'WAVE ' + wave;
-            uiMap.waveAnnounce.style.color = '#0ff';
+            enemiesToSpawn = 4 + Math.floor(wave * 1.5); waveInProgress = true; waveCooldown = 0;
+            uiMap.waveAnnounce.innerText = "WAVE " + wave; uiMap.waveAnnounce.style.color = "#0ff";
             uiMap.waveAnnounce.classList.add('show-announce');
             setTimeout(() => uiMap.waveAnnounce.classList.remove('show-announce'), 2000);
             uiMap.waveVal.innerText = wave;
         }
 
         function createParticles(x, y, count, color, speed = 5) {
-            for (let i = 0; i < count; i++) {
-                particles.push(new Particle(x, y, color, speed));
-            }
+            for (let i = 0; i < count; i++) particles.push(new Particle(x, y, color, speed));
         }
 
         function spawnManager(dt) {
@@ -1116,59 +894,42 @@
             let spawnRate = 0;
             if (currentMode === 'NORMAL') {
                 if (!waveInProgress || enemiesToSpawn <= 0) return;
-                spawnRate = Math.max(SPAWN_RATE_MIN_NORMAL, SPAWN_RATE_BASE_NORMAL - (wave * 3));
+                spawnRate = Math.max(40, 100 - (wave * 3));
             } else {
-                infiniteDifficultyLevel = 1 + Math.floor(frames / INFINITE_LEVEL_INTERVAL);
-                spawnRate = Math.max(SPAWN_RATE_MIN_INFINITE, SPAWN_RATE_BASE_INFINITE - (infiniteDifficultyLevel * 2));
+                infiniteDifficultyLevel = 1 + Math.floor(frames / 1200); spawnRate = Math.max(20, 80 - (infiniteDifficultyLevel * 2));
             }
             if (spawnTimer >= spawnRate) {
-                if (Math.random() < BONUS_SPAWN_CHANCE) {
-                    enemies.push(new BonusEnemy());
-                    audio.bonusSpawn();
-                } else {
-                    enemies.push(new Enemy());
-                }
+                if (Math.random() < 0.015) { enemies.push(new BonusEnemy()); audio.bonusSpawn(); }
+                else { enemies.push(new Enemy()); }
                 if (currentMode === 'NORMAL') enemiesToSpawn--;
                 spawnTimer = 0;
             }
         }
 
         function spawnDebris(x, y, amount) {
-            if (Math.random() > DEBRIS_SPAWN_CHANCE) return;
-            for (let i = 0; i < amount; i++) {
-                debris.push(new Debris(x, y));
-            }
+            if (Math.random() > 0.35) return;
+            for (let i = 0; i < amount; i++) debris.push(new Debris(x, y));
         }
 
         function checkWaveStatus(dt) {
             if (currentMode === 'INFINITE') return;
             if (waveInProgress && enemiesToSpawn === 0 && enemies.length === 0 && debris.length === 0) {
-                waveInProgress = false;
-                waveCooldown = WAVE_COOLDOWN_FRAMES;
-                uiMap.waveAnnounce.innerText = 'WAVE ' + wave + ' CLEARED';
-                uiMap.waveAnnounce.style.color = '#0f0';
+                waveInProgress = false; waveCooldown = 180;
+                uiMap.waveAnnounce.innerText = "WAVE " + wave + " CLEARED";
+                uiMap.waveAnnounce.style.color = "#0f0";
                 uiMap.waveAnnounce.classList.add('show-announce');
                 audio.waveClear();
             }
-            if (!waveInProgress && waveCooldown > 0) {
-                waveCooldown -= dt;
-                if (waveCooldown <= 0) {
-                    wave++;
-                    startWave();
-                }
-            }
+            if (!waveInProgress && waveCooldown > 0) { waveCooldown -= dt; if (waveCooldown <= 0) { wave++; startWave(); } }
         }
 
         function killEnemy(enemy) {
-            enemy.isDying = true;
-            enemy.markedForDeletion = true;
+            enemy.isDying = true; enemy.markedForDeletion = true;
             createParticles(enemy.x, enemy.y, 20, enemy.color, 10);
             createParticles(enemy.x, enemy.y, 15, '#fff', 12);
-            shakeScreen(8);
-            audio.explode();
-            score += enemy.isBonus ? SCORE_BONUS_KILL : SCORE_ENEMY_PER_CHAR * enemy.text.length;
-            scoreUpdate();
-            const debrisCount = Math.max(1, Math.floor(enemy.text.length / 2));
+            shakeScreen(8); audio.explode();
+            score += enemy.isBonus ? 5000 : 100 * enemy.text.length; scoreUpdate();
+            let debrisCount = Math.floor(enemy.text.length / 2); if (debrisCount < 1) debrisCount = 1;
             spawnDebris(enemy.x, enemy.y, debrisCount);
             if (activeTarget === enemy) activeTarget = null;
         }
@@ -1176,25 +937,20 @@
         function triggerGameOver(killerRadius = 20) {
             if (!gameActive) return;
             gameActive = false;
-            const intensity = Math.min(1.5, Math.max(0.2, (score / 5000) + ((killerRadius - 20) / 30)));
-            audio.catastrophicEnding(intensity);
-            audio.stopMusic();
+            let intensity = (score / 5000) + ((killerRadius - 20) / 30);
+            if (intensity > 1.5) intensity = 1.5; if (intensity < 0.2) intensity = 0.2;
+            audio.catastrophicEnding(intensity); audio.stopMusic();
             flashOverlay.classList.add('flash-active');
-            setTimeout(() => {
-                flashOverlay.classList.remove('flash-active');
-                flashOverlay.classList.add('flash-fade');
-            }, 100);
+            setTimeout(() => { flashOverlay.classList.remove('flash-active'); flashOverlay.classList.add('flash-fade'); }, 100);
             gameContainer.classList.add('glitch-active');
             setTimeout(() => {
-                const particleCount = Math.min(500, 100 + (score * 0.2));
+                let particleCount = Math.min(500, 100 + (score * 0.2));
                 createParticles(player.x, player.y, particleCount, '#00ffff', 10 + (20 * intensity));
                 createParticles(player.x, player.y, particleCount / 2, '#ff00ff', 5 + (10 * intensity));
                 player.visible = false;
                 enemies.forEach(e => createParticles(e.x, e.y, 20, COLORS.enemy, 8));
                 debris.forEach(d => createParticles(d.x, d.y, 10, COLORS.debris, 6));
-                enemies = [];
-                debris = [];
-                bullets = [];
+                enemies = []; debris = []; bullets = [];
                 shakeScreen(30 + (100 * intensity));
                 setTimeout(() => {
                     gameContainer.classList.remove('glitch-active');
@@ -1202,9 +958,8 @@
                     uiMap.finalScore.innerText = score;
                     uiMap.finalWaveLabel.style.display = (currentMode === 'NORMAL') ? 'block' : 'none';
                     if (currentMode === 'NORMAL') uiMap.finalWave.innerText = wave;
-                    uiMap.start.classList.add('hidden');
-                    uiMap.scoreBoard.classList.add('hidden');
-                }, GAME_OVER_SHOW_DELAY_MS);
+                    uiMap.start.classList.add('hidden'); uiMap.scoreBoard.classList.add('hidden');
+                }, 3000);
             }, 200 * intensity);
         }
 
@@ -1213,8 +968,7 @@
                 if (bullet.target) {
                     const distSq = (bullet.x - bullet.target.x) ** 2 + (bullet.y - bullet.target.y) ** 2;
                     if (distSq < 400 || bullet.target.markedForDeletion) {
-                        bullet.markedForDeletion = true;
-                        createParticles(bullet.x, bullet.y, 4, COLORS.bullet, 2);
+                        bullet.markedForDeletion = true; createParticles(bullet.x, bullet.y, 4, COLORS.bullet, 2);
                     }
                 }
             });
@@ -1222,189 +976,99 @@
                 if (!enemy.markedForDeletion && !enemy.isDying) {
                     const distSq = (player.x - enemy.x) ** 2 + (player.y - enemy.y) ** 2;
                     const radiusSum = player.radius + enemy.radius;
-                    if (distSq < radiusSum * radiusSum) {
-                        if (enemy.isBonus) return;
-                        triggerGameOver(enemy.radius);
-                    }
+                    if (distSq < radiusSum * radiusSum) { if (enemy.isBonus) return; triggerGameOver(enemy.radius); }
                 }
             });
             debris.forEach(d => {
                 if (!d.markedForDeletion) {
                     const distSq = (player.x - d.x) ** 2 + (player.y - d.y) ** 2;
                     const radiusSum = player.radius + d.radius;
-                    if (distSq < radiusSum * radiusSum) {
-                        triggerGameOver(d.radius);
-                        d.markedForDeletion = true;
-                    }
+                    if (distSq < radiusSum * radiusSum) { triggerGameOver(d.radius); d.markedForDeletion = true; }
                 }
-            });
+            })
         }
 
-        function scoreUpdate() {
-            uiMap.scoreVal.innerText = score;
-        }
-
+        function scoreUpdate() { uiMap.scoreVal.innerText = score; }
         function shakeScreen(intensity = 5) {
-            const offsetX = Math.random() * intensity - intensity / 2;
-            const offsetY = Math.random() * intensity - intensity / 2;
-            gameContainer.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-            setTimeout(() => { gameContainer.style.transform = 'translate(0, 0)'; }, SHAKE_DURATION_MS);
+            gameContainer.style.transform = `translate(${Math.random() * intensity - intensity / 2}px, ${Math.random() * intensity - intensity / 2}px)`;
+            setTimeout(() => gameContainer.style.transform = 'translate(0, 0)', 50);
         }
 
-        // ========== MAIN GAME LOOP ==========
         function loop(timestamp) {
             animationFrameId = requestAnimationFrame(loop);
-            let dt = timestamp - lastTime;
-            lastTime = timestamp;
-            if (isNaN(dt)) dt = FRAME_REFERENCE;
-            if (dt > MAX_FRAME_DT) dt = MAX_FRAME_DT;
-            const timeScale = dt / FRAME_REFERENCE;
-
-            // Clear canvas
-            ctx.fillStyle = '#050510';
-            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-            // Update game state
-            if (gameActive) {
-                player.update(timeScale);
-                checkWaveStatus(timeScale);
-                spawnManager(timeScale);
-                checkCollisions();
-            }
+            let dt = timestamp - lastTime; lastTime = timestamp;
+            if (isNaN(dt)) dt = 16.67; if (dt > 100) dt = 100;
+            const timeScale = dt / 16.67;
+            ctx.fillStyle = '#050510'; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            if (gameActive) { player.update(timeScale); checkWaveStatus(timeScale); spawnManager(timeScale); checkCollisions(); }
             player.draw();
-
-            // Update and draw entities
-            bullets.forEach(b => b.update(timeScale));
-            cleanArray(bullets);
-            bullets.forEach(b => b.draw());
-
-            enemies.forEach(e => e.update(timeScale));
-            cleanArray(enemies);
-
-            debris.forEach(d => d.update(timeScale));
-            cleanArray(debris);
-
-            particles.forEach(p => p.update(timeScale));
-            cleanArray(particles);
-
-            // Depth-sorted draw for enemies and debris
+            bullets.forEach(b => b.update(timeScale)); cleanArray(bullets); bullets.forEach(b => b.draw());
+            enemies.forEach(e => e.update(timeScale)); cleanArray(enemies);
+            debris.forEach(d => d.update(timeScale)); cleanArray(debris);
+            particles.forEach(p => p.update(timeScale)); cleanArray(particles);
             drawList.length = 0;
             for (let i = 0; i < enemies.length; i++) drawList.push(enemies[i]);
             for (let i = 0; i < debris.length; i++) drawList.push(debris[i]);
             drawList.sort((a, b) => a.y - b.y);
             for (let i = 0; i < drawList.length; i++) drawList[i].draw();
-
             frames += timeScale;
         }
 
-        // ========== INPUT HANDLING ==========
-        function handleVirtualInput(char) {
-            handleInputLogic(char);
-        }
+        function handleVirtualInput(char) { handleInputLogic(char); }
 
         window.addEventListener('keydown', (e) => {
             if (!gameActive) return;
-            if (e.code === 'Space') {
-                e.preventDefault();
-                toggleHunterMode();
-                return;
-            }
+            if (e.code === 'Space') { e.preventDefault(); toggleHunterMode(); return; }
             if (e.key.length === 1) handleInputLogic(e.key);
         });
 
-        /** Core input logic — matches typed characters to enemies/debris */
         function handleInputLogic(char) {
             if (!gameActive) return;
             let hit = false;
-
-            // Hunter mode — only target the active bonus enemy
             if (hunterMode) {
                 if (activeTarget && activeTarget.isBonus && !activeTarget.isDying) {
                     const expected = activeTarget.text[activeTarget.typedIndex];
                     if (char === expected) {
-                        activeTarget.typedIndex++;
-                        player.shoot(activeTarget);
+                        activeTarget.typedIndex++; player.shoot(activeTarget);
                         createParticles(activeTarget.x, activeTarget.y - activeTarget.radius - 20, 5, '#FFD700', 5);
                         audio.hit();
-                        if (activeTarget.typedIndex >= activeTarget.text.length) {
-                            killEnemy(activeTarget);
-                            if (hunterMode) toggleHunterMode();
-                        }
+                        if (activeTarget.typedIndex >= activeTarget.text.length) { killEnemy(activeTarget); if (hunterMode) toggleHunterMode(); }
                         hit = true;
-                    } else {
-                        audio.error();
-                        shakeScreen(4);
-                    }
+                    } else { audio.error(); shakeScreen(4); }
                 }
                 return;
             }
-
-            // Try to match debris first
             const matchingDebris = debris.filter(d => d.char === char);
             if (matchingDebris.length > 0) {
-                matchingDebris.sort((a, b) =>
-                    ((a.x - player.x) ** 2 + (a.y - player.y) ** 2) -
-                    ((b.x - player.x) ** 2 + (b.y - player.y) ** 2)
-                );
-                const targetDebris = matchingDebris[0];
-                targetDebris.markedForDeletion = true;
-                player.shoot(targetDebris);
+                matchingDebris.sort((a, b) => ((a.x - player.x) ** 2 + (a.y - player.y) ** 2) - ((b.x - player.x) ** 2 + (b.y - player.y) ** 2));
+                const targetDebris = matchingDebris[0]; targetDebris.markedForDeletion = true; player.shoot(targetDebris);
                 createParticles(targetDebris.x, targetDebris.y, 8, COLORS.debris, 7);
-                score += SCORE_DEBRIS;
-                scoreUpdate();
-                hit = true;
+                score += 50; scoreUpdate(); hit = true;
             }
-
-            // Try to continue typing the active target
             if (!hit && activeTarget && !activeTarget.isDying && !activeTarget.isBonus) {
                 const expected = activeTarget.text[activeTarget.typedIndex];
                 if (char === expected) {
-                    activeTarget.typedIndex++;
-                    player.shoot(activeTarget);
+                    activeTarget.typedIndex++; player.shoot(activeTarget);
                     createParticles(activeTarget.x, activeTarget.y - activeTarget.radius - 20, 5, '#0f0', 5);
                     audio.hit();
                     if (activeTarget.typedIndex >= activeTarget.text.length) killEnemy(activeTarget);
                     hit = true;
-                } else {
-                    if (!hit) shakeScreen(2);
-                }
+                } else { if (!hit) shakeScreen(2); }
             }
-
-            // Try to find a new target that starts with this character
             if (!hit && (!activeTarget || activeTarget.isDying)) {
-                const candidates = enemies.filter(e =>
-                    !e.markedForDeletion && !e.isDying && !e.isBonus &&
-                    e.typedIndex === 0 && e.text[0] === char
-                );
+                const candidates = enemies.filter(e => !e.markedForDeletion && !e.isDying && !e.isBonus && e.typedIndex === 0 && e.text[0] === char);
                 if (candidates.length > 0) {
-                    candidates.sort((a, b) => b.y - a.y);
-                    activeTarget = candidates[0];
-                    activeTarget.typedIndex++;
-                    player.shoot(activeTarget);
+                    candidates.sort((a, b) => b.y - a.y); activeTarget = candidates[0]; activeTarget.typedIndex++; player.shoot(activeTarget);
                     if (activeTarget.typedIndex >= activeTarget.text.length) killEnemy(activeTarget);
                     hit = true;
                 }
             }
         }
 
-        // ========== UI EVENT BINDINGS ==========
-        uiMap.modeNormalBtn.addEventListener('click', () => {
-            uiMap.start.classList.add('hidden');
-            uiMap.scoreBoard.classList.remove('hidden');
-            init('NORMAL');
-        });
-        uiMap.modeInfiniteBtn.addEventListener('click', () => {
-            uiMap.start.classList.add('hidden');
-            uiMap.scoreBoard.classList.remove('hidden');
-            init('INFINITE');
-        });
-        uiMap.restartBtn.addEventListener('click', () => {
-            uiMap.gameOver.classList.add('hidden');
-            uiMap.start.classList.remove('hidden');
-            uiMap.scoreBoard.classList.add('hidden');
-        });
+        uiMap.modeNormalBtn.addEventListener('click', () => { uiMap.start.classList.add('hidden'); uiMap.scoreBoard.classList.remove('hidden'); init('NORMAL'); });
+        uiMap.modeInfiniteBtn.addEventListener('click', () => { uiMap.start.classList.add('hidden'); uiMap.scoreBoard.classList.remove('hidden'); init('INFINITE'); });
+        uiMap.restartBtn.addEventListener('click', () => { uiMap.gameOver.classList.add('hidden'); uiMap.start.classList.remove('hidden'); uiMap.scoreBoard.classList.add('hidden'); });
 
-        // Prevent touch events on buttons from propagating to canvas
         const buttons = document.querySelectorAll('button');
         buttons.forEach(btn => {
             btn.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: false });
