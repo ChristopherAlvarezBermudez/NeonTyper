@@ -215,6 +215,18 @@ button:hover {
     text-shadow: 0 0 10px #0ff;
 }
 
+#hunterStatus {
+    display: block;
+    margin-top: 4px;
+}
+
+#timerLine {
+    display: block;
+    margin-top: 2px;
+    color: #0ff;
+    font-size: 18px;
+}
+
 #waveAnnounce {
     position: absolute;
     top: 40%;
@@ -263,7 +275,9 @@ button:hover {
 
     #gameContainer {
         width: 100vw;
-        height: 55dvh;
+        flex: 55 1 0%;
+        min-height: 0;
+        box-sizing: border-box;
         box-shadow: none;
         border: none;
         border-bottom: 2px solid #0ff;
@@ -289,12 +303,34 @@ button:hover {
         font-size: 14px;
     }
 
+    #textSizeControl {
+        gap: 4px;
+        bottom: 5px;
+        left: 8px;
+    }
+
+    #textSizeLabel {
+        font-size: 14px;
+    }
+
+    .size-btn {
+        padding: 2px 8px !important;
+        font-size: 12px !important;
+        min-width: 24px;
+    }
+
+    #textSizeValue {
+        font-size: 11px;
+        min-width: 32px;
+    }
+
     /* Mobile Controls */
     #mobileControls {
         display: flex;
         flex-direction: column;
         width: 100vw;
-        height: 45dvh;
+        flex: 45 1 0%;
+        min-height: 0;
         background: #050510;
         position: relative;
         z-index: 5000;
@@ -396,6 +432,10 @@ button:hover {
 
     #scoreBoard #hunterStatus {
         font-size: 9px !important;
+    }
+
+    #scoreBoard #timerLine {
+        font-size: 9px;
     }
 
     #waveAnnounce {

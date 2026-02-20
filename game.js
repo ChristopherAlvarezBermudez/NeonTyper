@@ -20,7 +20,11 @@ const uiMap = {
     restartBtn: document.getElementById('restartBtn'),
     waveAnnounce: document.getElementById('waveAnnounce'),
     hunterStatus: document.getElementById('hunterStatus'),
-    startHint: document.getElementById('startHint')
+    startHint: document.getElementById('startHint'),
+    timerLine: document.getElementById('timerLine'),
+    timerVal: document.getElementById('timerVal'),
+    finalTime: document.getElementById('finalTime'),
+    finalTimeLabel: document.getElementById('finalTimeLabel')
 };
 const mobileControls = document.getElementById('mobileControls');
 const hunterToggle = document.getElementById('hunterToggle');
@@ -90,7 +94,7 @@ function resizeGame() {
 
     if (isMobile) {
         gameContainer.style.width = '100vw';
-        gameContainer.style.height = '55dvh';
+        gameContainer.style.height = '';
         mobileControls.style.display = 'flex';
         uiMap.startHint.innerHTML = "<span style='color:#0ff'>TAP DEBRIS</span> TO DESTROY<br><span style='color:#FFD700'>TAP BUTTON</span> FOR HUNTER MODE";
     } else {
@@ -343,6 +347,11 @@ class SoundSynthesis {
         setTimeout(() => this.playTone(1200, 'sine', 0.3, 0.1), 100);
     }
 
+    debrisExplode() {
+        this.playNoise(0.15, 0.15);
+        this.playTone(200, 'sawtooth', 0.15, 0.1);
+    }
+
     catastrophicEnding(intensity) {
         if (!this.ctx || this.isMuted) return;
         this.playNoise(1.0, 0.5);
@@ -395,6 +404,8 @@ let enemiesToSpawn = 0;
 let waveInProgress = false;
 let waveCooldown = 0;
 let infiniteDifficultyLevel = 1;
+let gameStartTime = 0;
+let elapsedTime = 0;
 let player;
 let bullets = [];
 let enemies = [];
@@ -737,9 +748,7 @@ class Debris {
             if (!this.markedForDeletion) {
                 this.pendingDeathTimer += dt;
                 if (this.pendingDeathTimer > 180) {
-                    this.markedForDeletion = true;
-                    createMiniParticles(this.x, this.y, 8, COLORS.debris, 7);
-                    floatingTexts.push(new FloatingText(this.x, this.y - 20, '+' + this.pointsEarned, COLORS.debris));
+                    visualKillDebris(this);
                 }
             }
             return;
@@ -963,10 +972,15 @@ function init(mode) {
     if (currentMode === 'NORMAL') {
         uiMap.waveLabel.classList.remove('hidden');
         uiMap.waveVal.classList.remove('hidden');
+        uiMap.timerLine.classList.add('hidden');
         startWave();
     } else {
         uiMap.waveLabel.classList.add('hidden');
         uiMap.waveVal.classList.add('hidden');
+        uiMap.timerLine.classList.remove('hidden');
+        uiMap.timerVal.innerText = '00:00';
+        gameStartTime = performance.now();
+        elapsedTime = 0;
         uiMap.waveAnnounce.innerText = 'INFINITE MODE';
         uiMap.waveAnnounce.classList.add('show-announce');
         setTimeout(() => uiMap.waveAnnounce.classList.remove('show-announce'), 2000);
@@ -1103,6 +1117,18 @@ function visualKillEnemy(enemy) {
     spawnDebris(enemy.x, enemy.y, debrisCount);
 }
 
+/** Visual explosion for debris — scaled-down version of enemy explosion */
+function visualKillDebris(d) {
+    if (d.markedForDeletion) return;
+    d.markedForDeletion = true;
+    createParticles(d.x, d.y, 8, COLORS.debris, 3);
+    createParticles(d.x, d.y, 5, '#fff', 2);
+    shockwaves.push(new Shockwave(d.x, d.y, COLORS.debris, 30));
+    shakeScreen(3);
+    audio.debrisExplode();
+    floatingTexts.push(new FloatingText(d.x, d.y - 20, '+' + d.pointsEarned, COLORS.debris));
+}
+
 function triggerGameOver(killerRadius = 20) {
     if (!gameActive) return;
     gameActive = false;
@@ -1132,6 +1158,12 @@ function triggerGameOver(killerRadius = 20) {
             uiMap.finalScore.innerText = score;
             uiMap.finalWaveLabel.style.display = (currentMode === 'NORMAL') ? 'block' : 'none';
             if (currentMode === 'NORMAL') uiMap.finalWave.innerText = wave;
+            if (currentMode === 'INFINITE') {
+                uiMap.finalTimeLabel.classList.remove('hidden');
+                uiMap.finalTime.innerText = formatTime(elapsedTime);
+            } else {
+                uiMap.finalTimeLabel.classList.add('hidden');
+            }
             uiMap.start.classList.add('hidden');
             uiMap.scoreBoard.classList.add('hidden');
         }, GAME_OVER_SHOW_DELAY_MS);
@@ -1160,10 +1192,7 @@ function checkCollisions() {
                         if (bullet.target instanceof Enemy) {
                             visualKillEnemy(bullet.target);
                         } else {
-                            bullet.target.markedForDeletion = true;
-                            createMiniParticles(bullet.target.x, bullet.target.y, 10, COLORS.debris, 7);
-                            floatingTexts.push(new FloatingText(bullet.target.x, bullet.target.y - 20, '+' + bullet.target.pointsEarned, COLORS.debris));
-                            shakeScreen(3);
+                            visualKillDebris(bullet.target);
                         }
                     } else {
                         // Non-final bullet — impact spark, enemy still waiting
@@ -1202,6 +1231,19 @@ function scoreUpdate() {
     uiMap.scoreVal.innerText = score;
 }
 
+/** Format milliseconds as MM:SS */
+function formatTime(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    return String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+}
+
+function updateTimer() {
+    elapsedTime = performance.now() - gameStartTime;
+    uiMap.timerVal.innerText = formatTime(elapsedTime);
+}
+
 function shakeScreen(intensity = 5) {
     const offsetX = Math.random() * intensity - intensity / 2;
     const offsetY = Math.random() * intensity - intensity / 2;
@@ -1231,6 +1273,7 @@ function loop(timestamp) {
         checkWaveStatus(timeScale);
         spawnManager(timeScale);
         checkCollisions();
+        if (currentMode === 'INFINITE') updateTimer();
     }
     player.draw();
 
